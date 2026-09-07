@@ -1,0 +1,9 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/Yumeansfish/Trustme-backend-overlay.git
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/Yumeansfish/Trustme-frontend.git
+[submodule "trustme-xai"]
+	path = trustme-xai
+	url = https://github.com/Yumeansfish/trustmeWatcher-xai.git

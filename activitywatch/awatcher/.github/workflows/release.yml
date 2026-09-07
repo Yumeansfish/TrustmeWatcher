@@ -1,0 +1,100 @@
+name: Release
+permissions:
+  contents: write
+on:
+  push:
+    tags:
+      - 'v[0-9]*.*.*'
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    # 22.04 is the earliest version with OpenSSL 3
+    runs-on: ubuntu-22.04
+    env:
+      AW_WEBUI_DIR: ${{ github.workspace }}/aw-webui/dist
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+          sudo apt-get install build-essential -y
+          sudo apt-get install libdbus-1-dev -y
+          sudo apt-get install libssl-dev -y
+          sudo apt-get install pkg-config -y
+          sudo apt-get install libxkbcommon-dev -y
+      - run: cargo install cargo-deb
+      - run: cargo install cargo-generate-rpm
+
+      # Build aw-webui
+      - name: Checkout aw-webui
+        uses: actions/checkout@v4
+        with:
+          repository: ActivityWatch/aw-webui
+          path: aw-webui
+          ref: 291da6f2c5e7a6b896f23a4eec5ffed9874321ba
+          submodules: true
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+      - name: Copy logo
+        run: cp media/logo/logo.png static/
+        working-directory: aw-webui
+      - run: npm ci
+        working-directory: aw-webui
+      - run: npm run build
+        working-directory: aw-webui
+
+      # Buil and upload binaries
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo build bundle
+        run: cargo build --release --features=bundle
+
+      - run: zip "awatcher-bundle.zip" awatcher
+        working-directory: target/release
+      - name: Upload awatcher-bundle to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/awatcher-bundle.zip
+
+      - name: cargo build bare
+        run: cargo build --release
+
+      - run: mv awatcher aw-awatcher
+        working-directory: target/release
+      - run: zip "aw-awatcher.zip" "aw-awatcher"
+        working-directory: target/release
+      - name: Upload awatcher to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/aw-awatcher.zip
+
+      - run: cargo deb --variant=bundle
+      - name: Upload bundle deb to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file_glob: true
+          file: target/debian/awatcher*.deb
+
+      - run: cargo deb --variant=module
+      - name: Upload module deb to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file_glob: true
+          file: target/debian/aw-awatcher*.deb
+
+      - run: cargo generate-rpm --variant=bundle
+      - run: cargo generate-rpm --variant=module
+      - name: Upload bundle RPM to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file_glob: true
+          file: target/generate-rpm/*.rpm

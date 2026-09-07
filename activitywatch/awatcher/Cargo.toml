@@ -1,0 +1,100 @@
+[package]
+name = "awatcher"
+description = "An activity and idle watcher based on ActivityWatch"
+version = { workspace = true }
+authors = ["Demmie <2e3s19@gmail.com>"]
+edition = "2021"
+license = "MPL-2.0"
+repository = "https://github.com/2e3s/awatcher"
+
+[[bin]]
+name = "awatcher"
+path = "src/main.rs"
+
+[build-dependencies]
+image = { version = "0.25.6" }
+
+[workspace]
+members = ["watchers"]
+
+[workspace.package]
+version = "0.3.3"
+
+[workspace.dependencies]
+anyhow = "1.0.98"
+log = { version = "0.4.27", features = ["std"] }
+tokio = { version = "1.47.0" }
+serde = "1.0.219"
+
+[dev-dependencies]
+rstest = "0.26.1"
+tempfile = "3.20.0"
+
+[dependencies]
+watchers = { path = "./watchers", default-features = false }
+chrono = "0.4.41"
+toml = "0.9.5"
+clap = { version = "4.5.45", features = ["string"] }
+fern = { version = "0.7.1", features = ["colored"] }
+log = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros", "signal"] }
+
+ksni = {version = "0.2.2", optional = true}
+aw-server = { git = "https://github.com/ActivityWatch/aw-server-rust", optional = true, rev = "656f3c9" }
+aw-datastore = { git = "https://github.com/ActivityWatch/aw-server-rust", optional = true, rev = "656f3c9" }
+open = { version = "5.3.2", optional = true }
+serde = { workspace = true, optional = true }
+
+[features]
+default = ["gnome", "kwin_window"]
+gnome = ["watchers/gnome"]
+kwin_window = ["watchers/kwin_window"]
+bundle = ["ksni", "aw-server", "aw-datastore", "open", "serde"]
+
+[package.metadata.deb.variants.module]
+name = "aw-awatcher"
+extended-description = """\
+Awatcher is a window activity and idle watcher for ActivityWatch.
+The goal is to compensate the fragmentation of desktop environments on Linux by supporting all reportable environments with both Wayland and X11.
+"""
+assets = [
+    ["target/release/awatcher", "usr/bin/aw-awatcher", "755"],
+    ["README.md", "usr/share/doc/aw-awatcher/README", "644"],
+]
+conflicts = "awatcher"
+
+[package.metadata.deb.variants.bundle]
+name = "awatcher"
+features = ["bundle"]
+
+extended-description = """\
+Awatcher is a window activity and idle watcher with a tray, server and UI for statistics.
+The goal is to compensate the fragmentation of desktop environments on Linux by supporting all reportable environments with both Wayland and X11.
+"""
+assets = [
+    ["src/bundle/awatcher.desktop", "usr/share/applications/", "644"],
+    ["src/bundle/logo.png", "usr/share/awatcher/icons/awatcher.png", "644"],
+    ["target/release/awatcher", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/awatcher/README", "644"],
+]
+conflicts = "aw-awatcher"
+
+[package.metadata.generate-rpm.variants.module]
+name = "aw-awatcher"
+assets = [
+    { source = "target/release/awatcher", dest = "/usr/bin/aw-awatcher", mode = "755" },
+]
+
+[package.metadata.generate-rpm.variants.module.conflicts]
+awatcher = "*"
+
+[package.metadata.generate-rpm.variants.bundle]
+assets = [
+    { source = "target/release/awatcher", dest = "/usr/bin/awatcher", mode = "755" },
+    { source = "src/bundle/awatcher.desktop", dest = "/usr/share/applications/", mode = "644" },
+    { source = "src/bundle/logo.png", dest = "/usr/share/awatcher/icons/awatcher.png", mode = "644" },
+]
+
+[package.metadata.generate-rpm.variants.bundle.conflicts]
+aw-awatcher = "*"
